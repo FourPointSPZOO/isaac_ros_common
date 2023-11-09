@@ -12,7 +12,7 @@ ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 source $ROOT/utils/print_color.sh
 
 function usage() {
-    print_info "Usage: run_dev.sh" {isaac_ros_dev directory path OPTIONAL}
+    print_info "Usage: run_dev.sh" {isaac_ros_dev_dir isaac_ros_image_prefix isaac_ros_custom_entrypoint OPTIONAL}
     print_info "Copyright (c) 2021-2022, NVIDIA CORPORATION."
 }
 
@@ -43,6 +43,23 @@ else
         print_error "Specified isaac_ros_dev does not exist: $ISAAC_ROS_DEV_DIR"
         exit 1
     fi
+    shift 1
+fi
+
+# Add a prefix to the output image name
+ISAAC_ROS_DEV_IMAGE_PREFIX="$1"
+if [[ -z "$ISAAC_ROS_DEV_IMAGE_PREFIX" ]]; then
+  ISAAC_ROS_DEV_IMAGE_PREFIX="isaac_ros_dev"
+  print_warning "isaac_ros_image_prefix not specified, assuming $ISAAC_ROS_DEV_IMAGE_PREFIX"
+else
+    shift 1
+fi
+
+ISAAC_ROS_CUSTOM_ENTRYPOINT="$1"
+if [[ -z "$ISAAC_ROS_CUSTOM_ENTRYPOINT" ]]; then
+    ISAAC_ROS_CUSTOM_ENTRYPOINT="/usr/local/bin/scripts/workspace-entrypoint.sh"
+    print_warning "isaac_ros_custom_entrypoint not specified, assuming $ISAAC_ROS_CUSTOM_ENTRYPOINT"
+else
     shift 1
 fi
 
@@ -105,7 +122,7 @@ fi
 
 PLATFORM="$(uname -m)"
 
-BASE_NAME="isaac_ros_dev-$PLATFORM"
+BASE_NAME="$ISAAC_ROS_DEV_IMAGE_PREFIX"-$PLATFORM
 CONTAINER_NAME="$BASE_NAME-container"
 
 # Remove any exited containers.
@@ -192,7 +209,7 @@ fi
 
 # Run container from image
 print_info "Running $CONTAINER_NAME"
-docker run -it --rm \
+docker run -it \
     --privileged \
     --network host \
     ${DOCKER_ARGS[@]} \
@@ -202,7 +219,7 @@ docker run -it --rm \
     --name "$CONTAINER_NAME" \
     --runtime nvidia \
     --user="admin" \
-    --entrypoint /usr/local/bin/scripts/workspace-entrypoint.sh \
+    --entrypoint $ISAAC_ROS_CUSTOM_ENTRYPOINT \
     --workdir /workspaces/isaac_ros-dev \
     $@ \
     $BASE_NAME \
